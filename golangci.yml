@@ -1,0 +1,87 @@
+# .golangci.yml
+version: "2"
+
+run:
+  timeout: 3m
+  go: "1.26"
+
+linters:
+  # standard = the default set (errcheck, govet, staticcheck, unused, etc.)
+  # This is your baseline — the compiler-equivalent layer
+  default: standard
+
+  enable:
+    # --- Bug prevention (things that will bite you hard) ---
+    - bodyclose       # HTTP response body not closed = silent resource leak
+    - contextcheck    # Passing background context instead of propagating = hidden bugs
+    - copyloopvar     # Loop variable capture issues (still catches edge cases in 1.26)
+    - errorlint       # Wrong error comparison: `err == ErrFoo` instead of `errors.Is`
+    - nilerr          # `if err != nil { return nil, nil }` — a classic trap
+    - exhaustive      # Non-exhaustive switch on enums — the compiler doesn't catch this
+
+    # --- Code quality / "yell at me" layer ---
+    - gocritic        # ~100 opinionated checks covering style, performance, diagnostics
+    - revive          # Modern golint replacement — very configurable, good defaults
+    - unparam         # Function params that are always called with the same value
+    - wrapcheck       # Errors from external packages must be wrapped with context
+    - reassign        # Detects reassignment of package-level variables (common mistake)
+    - noctx           # HTTP requests without context
+
+    # --- Readability ---
+    - goconst         # String literals repeated 3+ times → extract to const
+    - whitespace      # Unnecessary blank lines at start/end of blocks
+    - misspell        # Typos in comments and strings
+
+    # --- Security ---
+    - gosec           # Common security issues: SQL injection, hardcoded secrets, weak crypto
+
+    # --- Test quality ---
+    - testifylint     # Wrong usage of testify assertions
+    - thelper         # Test helpers missing t.Helper()
+
+  settings:
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+      disabled-checks:
+        - hugeParam     # Too noisy while learning
+
+    revive:
+      rules:
+        - name: exported
+          severity: warning
+        - name: unused-parameter
+          severity: warning
+        - name: error-return   # error should be last return value
+          severity: error
+
+    gosec:
+      excludes:
+        - G204  # Subprocess with variable — too noisy for CLI tools
+
+    exhaustive:
+      default-signifies-exhaustive: true  # switch with `default` is OK
+
+    wrapcheck:
+      ignore-package-globs:
+        - "encoding/*"
+        - "github.com/pkg/errors"
+
+  exclusions:
+    presets:
+      - std-error-handling   # Reduces noise on stdlib err patterns
+      - common-false-positives
+    warn-unused: true        # Tells you when an exclusion rule is stale
+
+formatters:
+  enable:
+    - gofumpt     # Stricter gofmt — opinionated, removes all bikeshedding
+    - goimports   # Auto-manages imports, groups std vs third-party
+  settings:
+    gofumpt:
+      extra-rules: true
+    goimports:
+      local-prefixes:
+        - github.com/akagitsunee  # Replace with your module path
